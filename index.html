@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi QR Code Generator</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 20px auto; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="password"], select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
+        button:hover { background-color: #0056b3; }
+        #qrcode { margin-top: 10px; text-align: center; }
+        #qrcode img, #qrcode canvas { max-width: 100%; border: 1px solid #eee; padding: 5px; }
+        .error { color: red; font-size: 0.9em; margin-top: 5px; }
+
+        /* --- TOEGEVOEGDE/AANGEPASTE REGELS VOOR FOOTER --- */
+        footer {
+            text-align: center; /* Centreer alle inline inhoud in de footer */
+            margin-top: 2px; /* Wat extra ruimte boven de footer */
+            padding-top: 3px; /* Wat ruimte binnen de footer bovenaan */
+            border-top: 1px solid #eee; /* Een lijntje boven de footer */
+        }
+        .social-links a {
+            display: inline-block; /* Zorgt dat links netjes naast elkaar staan en padding/margin respecteren */
+            margin: 5px 5px; /* Ruimte boven/onder en links/rechts van elke link */
+            text-decoration: none; /* Haal onderlijning van link weg */
+            color: #23a9e4; /* Geef de linktekst een kleur */
+            vertical-align: middle; /* Lijn icoon en tekst verticaal uit */
+        }
+        .social-icon {
+            height: 18px; /* Maak de iconen iets kleiner (pas aan naar wens) */
+            width: auto; /* Behoud de verhouding */
+            margin-right: 5px; /* Kleine ruimte tussen icoon en tekst */
+            vertical-align: middle; /* Lijn icoon verticaal uit met de tekst */
+        }
+        /* --- EINDE AANPASSINGEN FOOTER --- */
+
+    </style>
+    <!-- We gebruiken een externe bibliotheek om de QR code te maken -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+    <h1>WiFi QR Code Generator</h1>
+
+    <div>
+        <label for="ssid">Netwerknaam (SSID):</label>
+        <input type="text" id="ssid" name="ssid" required>
+    </div>
+
+    <div>
+        <label for="encryption">Beveiligingstype:</label>
+        <select id="encryption" name="encryption">
+            <option value="WPA">WPA/WPA2</option>
+            <option value="WEP">WEP</option>
+            <option value="nopass">Geen (Open netwerk)</option>
+        </select>
+    </div>
+
+    <div id="password-field">
+        <label for="password">Wachtwoord:</label>
+        <input type="password" id="password" name="password">
+        <div id="password-error" class="error"></div>
+    </div>
+
+    <div>
+        <input type="checkbox" id="hidden" name="hidden">
+        <label for="hidden" style="display: inline; font-weight: normal;"> Netwerk is verborgen (Hidden SSID)</label>
+    </div>
+
+    <button onclick="generateQRCode()">Genereer QR Code</button>
+
+    <div id="qrcode">
+        <!-- Hier komt de QR code -->
+    </div>
+     <div id="qr-text" style="margin-top: 10px; font-size: 0.8em; word-wrap: break-word;"></div>
+
+    <!-- Footer -->
+    <footer>
+        <p>Auteur: Diabetes Liga Midden-Limburg</p>
+        <p class="social-links"> <!-- Class gebruikt voor styling -->
+            <a href="https://www.dlml.be" target="_blank">
+                <img src="Wereldbol.png" alt="Website DLML" class="social-icon">www.dlml.be
+            </a>
+            <a href="https://www.facebook.com/p/Diabetes-Liga-Midden-Limburg-100091325418693/?locale=nl_NL" target="_blank">
+                <img src="Facebook.png" alt="Facebook DLML" class="social-icon">Facebook
+            </a>
+            <a href="https://www.instagram.com/diabetes_liga_midden_limburg/" target="_blank">
+                <img src="Instagram.png" alt="Instagram DLML" class="social-icon">Instagram
+            </a>
+            <a href="https://www.youtube.com/@Diabetesligamiddenlimburg" target="_blank">
+                <img src="YouTube.png" alt="YouTube DLML" class="social-icon">YouTube
+            </a>
+        </p>
+    </footer>
+
+    <script>
+        const encryptionSelect = document.getElementById('encryption');
+        const passwordFieldDiv = document.getElementById('password-field');
+        const passwordInput = document.getElementById('password');
+        const passwordError = document.getElementById('password-error');
+        const qrCodeDiv = document.getElementById('qrcode');
+        const qrTextDiv = document.getElementById('qr-text');
+        let qrcode = null; // Variabele om het QR code object op te slaan
+
+        // Verberg/toon wachtwoordveld op basis van encryptie
+        encryptionSelect.addEventListener('change', function() {
+            if (this.value === 'nopass') {
+                passwordFieldDiv.style.display = 'none';
+                passwordInput.value = ''; // Maak wachtwoord leeg
+                passwordInput.required = false;
+                 passwordError.textContent = ''; // Wis eventuele foutmelding
+            } else {
+                passwordFieldDiv.style.display = 'block';
+                passwordInput.required = true;
+            }
+        });
+
+        // Functie om speciale tekens te escapen
+        function escapeWifiValue(value) {
+            if (!value) return '';
+            return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/:/g, '\\:').replace(/"/g, '\\"');
+        }
+
+        function generateQRCode() {
+            const ssid = document.getElementById('ssid').value;
+            const encryption = document.getElementById('encryption').value;
+            const password = passwordInput.value;
+            const isHidden = document.getElementById('hidden').checked;
+
+            // Reset foutmeldingen en vorige QR code
+            passwordError.textContent = '';
+            qrCodeDiv.innerHTML = ''; // Maak de QR code div leeg
+            qrTextDiv.textContent = '';
+            qrcode = null;
+
+            // Validatie
+            if (!ssid) {
+                alert("Netwerknaam (SSID) is verplicht.");
+                return;
+            }
+            if (encryption !== 'nopass' && !password) {
+                passwordError.textContent = "Wachtwoord is verplicht voor WPA/WEP.";
+                return;
+            }
+
+            // Bouw de WiFi string
+            let wifiString = `WIFI:S:${escapeWifiValue(ssid)};T:${encryption};`;
+            if (encryption !== 'nopass') {
+                wifiString += `P:${escapeWifiValue(password)};`;
+            }
+            if (isHidden) {
+                wifiString += `H:true;`;
+            }
+            wifiString += ';'; // Afsluitende ;;
+
+            // Toon de gegenereerde tekst (voor debuggen/info)
+            qrTextDiv.textContent = "Gegenereerde tekst: " + wifiString;
+
+            // Genereer de QR code
+            try {
+                 qrcode = new QRCode(qrCodeDiv, {
+                    text: wifiString,
+                    width: 256,
+                    height: 256,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.M // Medium correctie niveau
+                });
+            } catch (error) {
+                 console.error("QR Code generatie fout:", error);
+                 qrCodeDiv.innerHTML = "<p style='color:red;'>Kon QR code niet genereren. Controleer de invoer.</p>";
+            }
+        }
+
+        // Zorg dat wachtwoordveld correct getoond/verborgen is bij laden pagina
+        if (encryptionSelect.value === 'nopass') {
+             passwordFieldDiv.style.display = 'none';
+             passwordInput.required = false;
+        } else {
+             passwordInput.required = true;
+        }
+
+    </script>
+
+</body>
+</html>
