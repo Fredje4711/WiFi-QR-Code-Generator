@@ -16,7 +16,21 @@
         #qrcode img, #qrcode canvas { max-width: 100%; border: 1px solid #eee; padding: 5px; background-color: white; /* Zorgt voor witte achtergrond bij opslaan */ }
         .error { color: red; font-size: 0.9em; margin-top: 5px; }
 
-        footer { text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; } /* Marge aangepast */
+        /* --- NIEUWE STIJLEN VOOR INFO TEKST --- */
+        .info-text {
+            font-size: 0.85em; /* Iets kleiner */
+            color: #555;       /* Grijsachtig */
+            margin-top: -5px;  /* Iets dichter bij het veld erboven */
+            margin-bottom: 10px; /* Ruimte onder de tekst */
+        }
+        .warning-text {
+            font-size: 0.85em;
+            color: #777;
+            margin-top: 10px; /* Ruimte boven de waarschuwing */
+        }
+        /* --- EINDE NIEUWE STIJLEN --- */
+
+        footer { text-align: center; margin-top: 10px; padding-top: 0px; border-top: 1px solid #eee; } /* Marge aangepast */
         .social-links a { display: inline-block; margin: 5px 10px; text-decoration: none; color: #23a9e4; /* <-- Kleur aangepast */ vertical-align: middle; }
         .social-icon { height: 18px; width: auto; margin-right: 5px; vertical-align: middle; }
     </style>
@@ -39,6 +53,8 @@
             <option value="WEP">WEP</option>
             <option value="nopass">Geen (Open netwerk)</option>
         </select>
+        <!-- --- NIEUWE INFO TEKST HIER --- -->
+        <p class="info-text">WPA/WPA2 is de meest gebruikelijke instelling.</p>
     </div>
 
     <div id="password-field">
@@ -53,8 +69,10 @@
     </div>
 
     <button onclick="generateQRCode()">Genereer QR Code</button>
-    <!-- NIEUWE Opslaan knop, initieel verborgen -->
     <button id="saveButton" onclick="saveQRCode()" style="display: none;">Opslaan als PNG</button>
+
+    <!-- --- NIEUWE WAARSCHUWING TEKST HIER --- -->
+    <p class="warning-text"><b>Let op:</b> Zelfs met onjuiste of fictieve gegevens wordt een QR-code gegenereerd,maar deze zal niet werken om verbinding te maken.</p>
 
     <div id="qrcode">
         <!-- Hier komt de QR code -->
@@ -158,58 +176,14 @@
             }
         }
 
-        // NIEUWE FUNCTIE om QR code op te slaan
         function saveQRCode() {
-            // Zoek naar het canvas of img element binnen de qrCodeDiv
             const qrElement = qrCodeDiv.querySelector('canvas, img');
-
-            if (!qrElement) {
-                alert("Kan QR code element niet vinden om op te slaan.");
-                return;
-            }
-
+            if (!qrElement) { alert("Kan QR code element niet vinden om op te slaan."); return; }
             let dataUrl;
-
-            // Haal de data URL op, afhankelijk of het een canvas of img is
-            if (qrElement.tagName === 'CANVAS') {
-                dataUrl = qrElement.toDataURL('image/png');
-            } else if (qrElement.tagName === 'IMG') {
-                // Als het een img is, heeft het waarschijnlijk al een data URL als src
-                // Of we moeten het op een canvas tekenen om te converteren (complexer)
-                // We gaan er hier vanuit dat qrcode.js een canvas maakt of een img met data url
-                dataUrl = qrElement.src;
-                // Kleine check of het wel een data URL is
-                if (!dataUrl.startsWith('data:image')) {
-                     // Fallback: Teken afbeelding op een tijdelijk canvas
-                    try {
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = qrElement.naturalWidth || qrElement.width;
-                        tempCanvas.height = qrElement.naturalHeight || qrElement.height;
-                        const ctx = tempCanvas.getContext('2d');
-                        ctx.drawImage(qrElement, 0, 0);
-                        dataUrl = tempCanvas.toDataURL('image/png');
-                    } catch (e) {
-                        alert("Kon afbeelding niet converteren om op te slaan.");
-                        console.error("Fout bij converteren IMG naar PNG:", e);
-                        return;
-                    }
-                }
-
-            } else {
-                 alert("Onbekend QR code element type gevonden.");
-                 return;
-            }
-
-
-            // Maak een tijdelijke download link
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = 'wifi-qrcode.png'; // Bestandsnaam voor de download
-
-            // Simuleer een klik op de link
-            document.body.appendChild(link); // Nodig voor Firefox
-            link.click();
-            document.body.removeChild(link); // Ruim de link weer op
+            if (qrElement.tagName === 'CANVAS') { dataUrl = qrElement.toDataURL('image/png'); }
+            else if (qrElement.tagName === 'IMG') { dataUrl = qrElement.src; if (!dataUrl.startsWith('data:image')) { try { const tempCanvas = document.createElement('canvas'); tempCanvas.width = qrElement.naturalWidth || qrElement.width; tempCanvas.height = qrElement.naturalHeight || qrElement.height; const ctx = tempCanvas.getContext('2d'); ctx.drawImage(qrElement, 0, 0); dataUrl = tempCanvas.toDataURL('image/png'); } catch (e) { alert("Kon afbeelding niet converteren om op te slaan."); console.error("Fout bij converteren IMG naar PNG:", e); return; } } }
+            else { alert("Onbekend QR code element type gevonden."); return; }
+            const link = document.createElement('a'); link.href = dataUrl; link.download = 'wifi-qrcode.png'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         // Initiele status wachtwoordveld
